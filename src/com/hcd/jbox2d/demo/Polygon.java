@@ -8,6 +8,15 @@ import org.jbox2d.dynamics.BodyType;
 import org.jbox2d.dynamics.FixtureDef;
 import org.jbox2d.dynamics.World;
 
+import com.hcd.jbox2d.utils.PolygonCenterUtils;
+
+import android.util.Log;
+
+/**
+ * 定义一个多边形的类
+ * @author jvaeyhcd.com
+ *
+ */
 public class Polygon {
 
 	//定义多边形物体所在的世界
@@ -35,6 +44,7 @@ public class Polygon {
 		this.density = density;
 		this.angle = angle;
 		this.edge = edge;
+		Log.i("Polygon", x + "," + y);
 		createBody();
 	}
 	/**
@@ -141,5 +151,20 @@ public class Polygon {
 
 	public void setBody(Body body) {
 		this.body = body;
+	}
+	
+	public Vec2[] getNowVecs() {
+		Vec2[] tmp = new Vec2[edge];
+		
+		Vec2 centerPoint = PolygonCenterUtils.getPolygonCenter(vecs);
+		//根据旋转的角度获得各个点的坐标
+		for (int i = 0; i < edge; i++) {
+			float vecX = (float) (vecs[i].x * Math.cos(angle) - vecs[i].y
+					* Math.sin(angle));
+			float vecY = (float) (vecs[i].x * Math.sin(angle) + vecs[i].y
+					* Math.cos(angle));
+			tmp[i] = new Vec2(vecX + x - centerPoint.x , vecY + y - centerPoint.y);
+		}
+		return tmp;
 	}
 }

@@ -1,16 +1,19 @@
 package com.hcd.jbox2d.demo;
 
-import org.jbox2d.collision.shapes.CircleShape;
+import java.util.ArrayList;
+
 import org.jbox2d.collision.shapes.EdgeShape;
 import org.jbox2d.collision.shapes.PolygonShape;
 import org.jbox2d.common.Vec2;
 import org.jbox2d.dynamics.Body;
 import org.jbox2d.dynamics.BodyDef;
-import org.jbox2d.dynamics.BodyType;
 import org.jbox2d.dynamics.FixtureDef;
 import org.jbox2d.dynamics.World;
 
 import com.example.jbox2dgame1.R;
+import com.hcd.jbox2d.utils.CutPolygonUtils;
+import com.hcd.jbox2d.utils.GrahamScanUtils;
+import com.hcd.jbox2d.utils.PolygonCenterUtils;
 
 import android.os.Bundle;
 import android.os.Handler;
@@ -22,7 +25,6 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
@@ -35,21 +37,22 @@ public class MainActivity extends Activity {
 	private final static int RATE = 10;
 	private World world;
 	//世界中的一些物体
-	private Body m_ball, m_platform, m_triangle, m_box;
+	private Body m_platform;
 	//模拟的频率
 	private float timeStep;
 	//迭代越大，模拟越精确，但性能越低
 	private int iterations;
 	private Handler mHandler;
 	private Jbox2dView myView;
-	private Vec2[] vecs;
 	//屏幕的宽度与高度
 	private float screenWidth, screenHeight;
-	private Polygon polygon1;
+	private Polygon polygon2;
+	private ArrayList<Polygon> polygons = new ArrayList<Polygon>();
+	private Line line = new Line(0,0,0,0);
+	private boolean iscut = false;
 
 	class Jbox2dView extends View {
 
-		private float mov_x, mov_y, up_x, up_y;
 		private Canvas canvas;
 		private Paint paint;
 
@@ -58,36 +61,6 @@ public class MainActivity extends Activity {
 			paint = new Paint();
 		}
 
-		private void drawBall(float x, float y, float radius) {
-			paint.setAntiAlias(true);
-			paint.setColor(Color.rgb(111, 100, 99));
-			canvas.drawCircle(x * RATE, y * RATE, radius, paint);
-		}
-
-		private void drawTriangle(float x, float y, float angle, Vec2[] vecs) {
-			Path path = new Path();
-			Vec2[] tmp = new Vec2[3];
-			for (int i = 0; i < 3; i++) {
-				// tmp[i].x = vecs[i].x;//(float) (vecs[i].x * Math.cos(angle) -
-				// vecs[i].y * Math.sin(angle));
-				// tmp[i].y = vecs[i].y;//(float) (vecs[i].x * Math.sin(angle) +
-				// vecs[i].y * Math.cos(angle));
-				// tmp[i] = vecs[i];
-				float vecX = (float) (vecs[i].x * Math.cos(angle) - vecs[i].y
-						* Math.sin(angle));
-				float vecY = (float) (vecs[i].x * Math.sin(angle) + vecs[i].y
-						* Math.cos(angle));
-				Vec2 vectmp = new Vec2(vecX, vecY);
-				tmp[i] = vectmp;
-			}
-
-			path.moveTo((x + tmp[0].x) * RATE, (y + tmp[0].y) * RATE);// 此点为多边形的起点
-			path.lineTo((x + tmp[1].x) * RATE, (y + tmp[1].y) * RATE);
-			path.lineTo((x + tmp[2].x) * RATE, (y + tmp[2].y) * RATE);
-			path.close(); // 使这些点构成封闭的多边形
-			paint.setColor(Color.rgb(10, 100, 99));
-			canvas.drawPath(path, paint);
-		}
 
 		private void drawPlatform(float x, float y, float width, float height) {
 			paint.setAntiAlias(true);
@@ -96,42 +69,6 @@ public class MainActivity extends Activity {
 					+ height, paint);
 		}
 
-		private void drawBox(float x, float y, float width, float height,
-				float angle) {
-			paint.setAntiAlias(true);
-			paint.setColor(Color.rgb(111, 10, 99));
-			Path path = new Path();
-			Vec2[] vecs = new Vec2[4];
-			vecs[0] = new Vec2(50 / RATE, 40 / RATE);
-			vecs[1] = new Vec2(-50 / RATE, 40 / RATE);
-			vecs[2] = new Vec2(-50 / RATE, -40 / RATE);
-			vecs[3] = new Vec2(50 / RATE, -40 / RATE);
-
-			Vec2[] tmp = new Vec2[4];
-
-			for (int i = 0; i < 4; i++) {
-				// tmp[i].x = vecs[i].x;//(float) (vecs[i].x * Math.cos(angle) -
-				// vecs[i].y * Math.sin(angle));
-				// tmp[i].y = vecs[i].y;//(float) (vecs[i].x * Math.sin(angle) +
-				// vecs[i].y * Math.cos(angle));
-				// tmp[i] = vecs[i];
-				float vecX = (float) (vecs[i].x * Math.cos(angle) - vecs[i].y
-						* Math.sin(angle));
-				float vecY = (float) (vecs[i].x * Math.sin(angle) + vecs[i].y
-						* Math.cos(angle));
-				Vec2 vectmp = new Vec2(vecX, vecY);
-				tmp[i] = vectmp;
-			}
-
-			path.moveTo((x + tmp[0].x) * RATE, (y + tmp[0].y) * RATE);// 此点为多边形的起点
-			path.lineTo((x + tmp[1].x) * RATE, (y + tmp[1].y) * RATE);
-			path.lineTo((x + tmp[2].x) * RATE, (y + tmp[2].y) * RATE);
-			path.lineTo((x + tmp[3].x) * RATE, (y + tmp[3].y) * RATE);
-			path.close(); // 使这些点构成封闭的多边形
-			canvas.drawPath(path, paint);
-			// canvas.drawRect((x - width / 2), (y - height / 2), (x + width /
-			// 2), (y + height / 2) , paint);
-		}
 
 		private void drawLine(float x1, float y1, float x2, float y2) {
 			paint.setAntiAlias(true);
@@ -145,6 +82,8 @@ public class MainActivity extends Activity {
 			Path path = new Path();
 			Vec2[] vecs = polygon.getVecs();
 			Vec2[] tmp = new Vec2[polygon.getEdge()];
+			
+			//根据旋转的角度获得各个点的坐标
 			for (int i = 0; i < polygon.getEdge(); i++) {
 				float vecX = (float) (vecs[i].x * Math.cos(polygon.getAngle()) - vecs[i].y
 						* Math.sin(polygon.getAngle()));
@@ -152,12 +91,12 @@ public class MainActivity extends Activity {
 						* Math.cos(polygon.getAngle()));
 				tmp[i] = new Vec2(vecX, vecY);
 			}
-
-			path.moveTo((polygon.getX() + tmp[0].x) * RATE,
-					(polygon.getY() + tmp[0].y) * RATE);// 此点为多边形的起点
+			Vec2 centerPoint = new Vec2(0, 0);//PolygonCenterUtils.getPolygonCenter(vecs);
+			path.moveTo((polygon.getX() + tmp[0].x - centerPoint.x) * RATE,
+					(polygon.getY() + tmp[0].y - centerPoint.y) * RATE);// 此点为多边形的起点
 			for (int i = 1; i < polygon.getEdge(); i++) {
-				path.lineTo((polygon.getX() + tmp[i].x) * RATE,
-						(polygon.getY() + tmp[i].y) * RATE);
+				path.lineTo((polygon.getX() + tmp[i].x - centerPoint.x) * RATE,
+						(polygon.getY() + tmp[i].y - centerPoint.y) * RATE);
 			}
 			path.close(); // 使这些点构成封闭的多边形
 			canvas.drawPath(path, paint);
@@ -167,36 +106,30 @@ public class MainActivity extends Activity {
 		protected void onDraw(Canvas canvas) {
 			super.onDraw(canvas);
 			this.canvas = canvas;
-			drawBall(m_ball.getPosition().x, m_ball.getPosition().y, 20);
-			Log.i("dsds", m_triangle.getAngle() + "");
-			drawTriangle(m_triangle.getPosition().x,
-					m_triangle.getPosition().y, m_triangle.getAngle(), vecs);
 			drawPlatform(m_platform.getPosition().x, m_platform.getPosition().y
 					- 10 / RATE, screenWidth / 2, 20);
-			drawBox(m_box.getPosition().x, m_box.getPosition().y, 100, 80,
-					m_box.getAngle());
-			drawLine(mov_x, mov_y, up_x, up_y);
-			drawPolygon(polygon1);
+			drawLine(line.getV1().x, line.getV1().y, line.getV2().x, line.getV2().y);
+			for (int i = 0; i < polygons.size(); i++){
+				drawPolygon(polygons.get(i));
+			}
 		}
 
 		@Override
 		public boolean onTouchEvent(MotionEvent event) {
 			if (event.getAction() == MotionEvent.ACTION_MOVE) {// 如果拖动
-				canvas.drawLine(mov_x, mov_y, event.getX(), event.getY(), paint);// 画线
+				line.setV2(new Vec2(event.getX(), event.getY()));
 				invalidate();
 			}
 			if (event.getAction() == MotionEvent.ACTION_DOWN) {// 如果点击
-				mov_x = (int) event.getX();
-				mov_y = (int) event.getY();
-				canvas.drawPoint(mov_x, mov_y, paint);// 画点
+				line.setV1(new Vec2(event.getX(), event.getY()));
+				line.setV2(new Vec2(event.getX(), event.getY()));
 				invalidate();
 			}
 			if (event.getAction() == MotionEvent.ACTION_UP) {
-				up_x = event.getX();
-				up_y = event.getY();
+				line.setV2(new Vec2(event.getX(), event.getY()));
+				iscut = true;
 			}
-			// mov_x = (int) event.getX();
-			// mov_y = (int) event.getY();
+			
 			return true;
 		}
 
@@ -215,18 +148,16 @@ public class MainActivity extends Activity {
 		screenHeight = metric.heightPixels;
 		Vec2 gravity = new Vec2(0.0f, 10.0f); // 向量，用来标示当前世界的重力方向，第一个参数为水平方向，负数为做，正数为右。第二个参数表示垂直方向
 		world = new World(gravity);
-		createBall(200, screenHeight / 2 + 20, 20);
 		createPlatform(0, screenHeight / 2, screenWidth / 2, 10);
-		createTriangle();
 		createBorder();
-		createBox(240, 350, 100, 80);
-		createPolygon1();
+		createPolygon2();
 		myView = new Jbox2dView(this);
 		timeStep = 1.0f / 60.0f; // 定义频率
 		iterations = 10; // 定义迭代
 		setContentView(myView);
 		mHandler = new Handler();
 		mHandler.post(update);
+		mHandler.post(cutloop);
 	}
 
 	private Runnable update = new Runnable() {
@@ -235,34 +166,49 @@ public class MainActivity extends Activity {
 		public void run() {
 			world.step(timeStep, iterations, iterations);
 			myView.invalidate();
-
 			mHandler.postDelayed(update, (long) timeStep * 1000);
 		}
 	};
+	
+	private Runnable cutloop = new Runnable() {
+		
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			if(iscut) {
+				ArrayList<Polygon> polytemp = new ArrayList<Polygon>();
+				for (int i = 0; i < polygons.size(); i++) {
+					Vec2[] temp = new Vec2[2];
+					temp[0] = new Vec2(line.getV1().x / RATE, line.getV1().y / RATE);
+					temp[1] = new Vec2(line.getV2().x / RATE, line.getV2().y / RATE);
+					if ((CutPolygonUtils.getLeftCutPolygon(polygons.get(i).getNowVecs(), temp) != null) && 
+							(CutPolygonUtils.getRightCutPolygon(polygons.get(i).getNowVecs(), temp) != null)) {
+						Vec2[] left = CutPolygonUtils.getLeftCutPolygon(polygons.get(i).getNowVecs(), temp);
+						float x = PolygonCenterUtils.getPolygonCenter(left).x;
+						float y = PolygonCenterUtils.getPolygonCenter(left).y;
+						left = PolygonCenterUtils.getStandardPolygon(left);
+						Polygon pleft = new Polygon(world, x, y, left, left.length, 0.1f, 0.1f, 0.1f, 0.0f);
+						Vec2[] right = CutPolygonUtils.getRightCutPolygon(polygons.get(i).getNowVecs(), temp);
+						x = PolygonCenterUtils.getPolygonCenter(right).x;
+						y = PolygonCenterUtils.getPolygonCenter(right).y;
+						right = PolygonCenterUtils.getStandardPolygon(right);
+						Polygon pright = new Polygon(world, x, y, right, right.length, 0.1f, 0.1f, 0.1f, 0.0f);
+						polytemp.add(pright);
+						polytemp.add(pleft);
+						
+					} else {
+						polytemp.add(polygons.get(i));
+					}
+				}
+				polygons.clear();
+				polygons = polytemp;
+				iscut = false;
+				
+			}
+			mHandler.postDelayed(cutloop, (long) timeStep * 1000);
+		}
+	};
 
-	private void createBall(float x, float y, float radius) {
-		// 定义球的形状是一个圆形的
-		CircleShape shape = new CircleShape();
-		// 设置圆形球体半径
-		shape.setRadius(radius / RATE);
-
-		// 设置该物体的一些固定属性
-		FixtureDef fd = new FixtureDef();
-		fd.shape = shape;
-		fd.friction = 0.1f;
-		fd.restitution = 1.5f;
-
-		// 设置球形物体的定义
-		BodyDef bd = new BodyDef();
-		bd.position.set(x / RATE, y / RATE);
-		// 标明物体时可以动的
-		bd.type = BodyType.DYNAMIC;
-
-		// 根据bodydef创建球形物体
-		m_ball = world.createBody(bd);
-		// 设置球形物体的固定一些属性
-		m_ball.createFixture(fd);
-	}
 
 	private void createPlatform(float x, float y, float width, float height) {
 
@@ -280,27 +226,6 @@ public class MainActivity extends Activity {
 		m_platform.createFixture(fd);
 	}
 
-	private void createTriangle() {
-		PolygonShape triangle = new PolygonShape();
-		vecs = new Vec2[3];
-		vecs[0] = new Vec2(0.0f, 5.0f);
-		vecs[1] = new Vec2(3.0f, -4.0f);
-		vecs[2] = new Vec2(-3.0f, -2.0f);
-		triangle.set(vecs, 3);
-
-		FixtureDef fd = new FixtureDef();
-		fd.shape = triangle;
-		fd.restitution = 0.6f;
-		fd.density = 2.0f;
-
-		BodyDef bd = new BodyDef();
-		bd.type = BodyType.DYNAMIC;
-		bd.position.set(36.0f, 10.0f);
-		bd.angle = 0.0f;
-
-		m_triangle = world.createBody(bd);
-		m_triangle.createFixture(fd);
-	}
 
 	private void createBorder() {
 
@@ -323,36 +248,20 @@ public class MainActivity extends Activity {
 		border.createFixture(es, 0.0f);
 	}
 
-	private void createBox(float x, float y, float width, float height) {
-		PolygonShape shape = new PolygonShape();
-		shape.setAsBox(width / 2 / RATE, height / 2 / RATE);
 
-		FixtureDef fd = new FixtureDef();
-		fd.friction = 1.0f;
-		fd.restitution = 0.5f;
-		fd.shape = shape;
-		fd.density = 0.3f;
 
-		BodyDef bd = new BodyDef();
-		bd.type = BodyType.DYNAMIC;
-		bd.position = new Vec2(x / RATE, y / RATE);
-		m_box = world.createBody(bd);
-		m_box.createFixture(fd);
-	}
-
-	private void createPolygon1() {
-		Vec2[] vecs = new Vec2[6];
-		for (int i = 0; i < 6; i++) {
-			float vecX = (float) (30 / RATE * Math.cos(i * Math.PI / 3) - 0 * Math
-					.sin(i * Math.PI / 3));
-			float vecY = (float) (30 / RATE * Math.sin(i * Math.PI / 3) + 0 * Math
-					.cos(i * Math.PI / 3));
-			vecs[i] = new Vec2(vecX, vecY);
-		}
-		polygon1 = new Polygon(world, 300 / RATE, 100 / RATE, vecs, 6, 0.5f,
+	private void createPolygon2() {
+		Vec2[] vecs = new Vec2[4];
+		vecs[0] = new Vec2(50 / RATE, 40 / RATE);
+		vecs[1] = new Vec2(-50 / RATE, 40 / RATE);
+		vecs[2] = new Vec2(-50 / RATE, -40 / RATE);
+		vecs[3] = new Vec2(50 / RATE, -40 / RATE);
+		Vec2[] vecst = GrahamScanUtils.getGrahamScan(vecs);
+		polygon2 = new Polygon(world, 240 / RATE, 350 / RATE, vecst, vecst.length, 0.5f,
 				0.5f, 0.5f, 0.0f);
+		polygons.add(polygon2);
 	}
-
+	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
